@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Plus Jakarta Sans'; src: url('{{FONTS}}/plus-jakarta-sans/files/plus-jakarta-sans-latin-500-normal.woff'); font-weight: 500; }
+  @font-face { font-family: 'Plus Jakarta Sans'; src: url('{{FONTS}}/plus-jakarta-sans/files/plus-jakarta-sans-latin-600-normal.woff'); font-weight: 600; }
+  @font-face { font-family: 'Plus Jakarta Sans'; src: url('{{FONTS}}/plus-jakarta-sans/files/plus-jakarta-sans-latin-700-normal.woff'); font-weight: 700; }
+  @font-face { font-family: 'Plus Jakarta Sans'; src: url('{{FONTS}}/plus-jakarta-sans/files/plus-jakarta-sans-latin-800-normal.woff'); font-weight: 800; }
+
+  /* Utter Declutter Brand Kit v2d — Cocoa #2A2118 · Paper #FBF8F3 · Sand #EDE3D5 · Bronze #814A0A · Palm #5B7A55 */
+  @page { size: letter; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; color: #2A2118; font-weight: 500; }
+  .page { width: 8.5in; height: 11in; background: #FBF8F3; padding: 0.8in 0.85in; page-break-after: always; position: relative; }
+  .page:last-child { page-break-after: avoid; }
+  .page.sand { background: #EDE3D5; }
+
+  .brand { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.45in; }
+  .brand img { height: 0.34in; }
+  .chip { display: inline-block; font-size: 8.5pt; font-weight: 600; padding: 0.05in 0.14in; border-radius: 999px; background: #F3E7D8; color: #5E3506; }
+  .chip.sand { background: #EDE3D5; color: #2A2118; }
+  .chip.palm { background: #E4EAE0; color: #3E5639; }
+
+  .eyebrow { font-size: 9pt; font-weight: 700; color: #814A0A; margin-bottom: 0.1in; }
+  h1 { font-size: 30pt; font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; margin-bottom: 0.22in; }
+  h2 { font-size: 21pt; font-weight: 800; letter-spacing: -0.02em; line-height: 1.12; margin-bottom: 0.18in; }
+  h3 { font-size: 12pt; font-weight: 700; margin-bottom: 0.08in; }
+  p.body { font-size: 10.5pt; font-weight: 500; line-height: 1.65; color: rgba(42,33,24,.78); margin-bottom: 0.14in; max-width: 6.2in; }
+  p.body b { color: #2A2118; font-weight: 700; }
+  .small { font-size: 8.5pt; font-weight: 500; color: rgba(42,33,24,.62); line-height: 1.5; }
+  .pagefoot { position: absolute; bottom: 0.5in; left: 0.85in; right: 0.85in; display: flex; justify-content: space-between; font-size: 8pt; font-weight: 600; color: rgba(42,33,24,.5); }
+
+  /* three-step device */
+  .steps { display: flex; gap: 0.1in; }
+  .steps div { flex: 1; border-radius: 12px; padding: 0.22in 0.2in 0.18in; font-weight: 800; font-size: 13pt; letter-spacing: -0.01em; }
+  .steps small { display: block; font-weight: 600; font-size: 8pt; opacity: .75; margin-bottom: 0.06in; }
+  .steps .s1 { background: #EDE3D5; color: #2A2118; }
+  .steps .s2 { background: #2A2118; color: #FBF8F3; }
+  .steps .s3 { background: #814A0A; color: #FBF8F3; }
+  .inline-steps { display: inline-flex; gap: 0.08in; align-items: center; font-weight: 800; font-size: 10pt; }
+  .inline-steps i { width: 0.1in; height: 0.1in; border-radius: 3px; display: inline-block; }
+  .inline-steps .a { background: #D6C5AB; } .inline-steps .b { background: #2A2118; } .inline-steps .c { background: #814A0A; }
+  .inline-steps span { margin-right: 0.1in; }
+
+  /* cover */
+  .cover .hero { background: #EDE3D5; border-radius: 20px; padding: 0.55in 0.5in; margin-top: 0.3in; }
+  .cover .client { font-size: 34pt; font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; margin: 0.12in 0 0.1in; }
+  .cover .addr { font-size: 11pt; font-weight: 600; line-height: 1.5; color: rgba(42,33,24,.78); }
+  .cover .meta { position: absolute; bottom: 0.9in; left: 0.85in; right: 0.85in; display: flex; gap: 0.3in; }
+  .cover .meta div { flex: 1; border-top: 1.5pt solid #D6C5AB; padding-top: 0.12in; }
+  .cover .meta small { display: block; font-size: 8pt; font-weight: 600; color: rgba(42,33,24,.6); margin-bottom: 0.04in; }
+  .cover .meta b { font-size: 10.5pt; font-weight: 700; }
+
+  /* cards */
+  .card { background: #FFFFFF; border: 1px solid rgba(42,33,24,.12); border-radius: 20px; padding: 0.3in 0.32in; }
+  .card.tint { background: #F3E7D8; border-color: transparent; }
+  .card.sand { background: #EDE3D5; border-color: transparent; }
+  .two { display: flex; gap: 0.18in; }
+  .two > * { flex: 1; }
+
+  ul.list { list-style: none; }
+  ul.list li { font-size: 10.5pt; font-weight: 500; line-height: 1.5; padding: 0.06in 0 0.06in 0.26in; position: relative; color: rgba(42,33,24,.85); }
+  ul.list li::before { content: ""; position: absolute; left: 0; top: 0.17in; width: 0.1in; height: 0.1in; border-radius: 3px; background: #814A0A; }
+
+  /* photos */
+  .pair { display: flex; gap: 0.14in; margin-bottom: 0.14in; }
+  .shot { flex: 1; }
+  .shot img { width: 100%; height: 3.3in; object-fit: cover; display: block; border-radius: 20px; }
+  .shot .cap { font-size: 8.5pt; font-weight: 600; color: rgba(42,33,24,.62); margin-top: 0.08in; }
+  .shot .cap.after { color: #814A0A; font-weight: 700; }
+
+  /* materials */
+  table.materials { width: 100%; border-collapse: collapse; margin-bottom: 0.2in; }
+  table.materials td { padding: 0.1in 0; font-size: 10.5pt; font-weight: 500; border-bottom: 1px solid rgba(42,33,24,.12); }
+  table.materials tr:last-child td { border-bottom: none; }
+  table.materials td.qty { text-align: right; color: #814A0A; font-weight: 700; white-space: nowrap; }
+
+  /* investment */
+  .invest { background: #2A2118; color: #FBF8F3; border-radius: 20px; padding: 0.45in 0.45in 0.4in; margin-bottom: 0.22in; }
+  .invest .amount { font-size: 42pt; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .invest .lab { font-size: 10pt; font-weight: 600; opacity: .8; margin-top: 0.12in; }
+  .invest .disc { font-size: 10pt; font-weight: 600; color: #E3B27A; margin-top: 0.1in; }
+  table.terms { width: 100%; border-collapse: collapse; }
+  table.terms td { padding: 0.16in 0; border-top: 1px solid rgba(42,33,24,.12); font-size: 10.5pt; font-weight: 600; }
+  table.terms tr:last-child td { border-bottom: 1px solid rgba(42,33,24,.12); }
+  table.terms td.amt { text-align: right; font-weight: 800; font-size: 13pt; }
+  table.terms td .sub { display: block; font-size: 8.5pt; font-weight: 500; color: rgba(42,33,24,.62); margin-top: 0.03in; }
+  .timeline { display: flex; gap: 0.18in; margin-top: 0.22in; }
+  .t-item { flex: 1; background: #EDE3D5; border-radius: 12px; padding: 0.18in 0.2in; }
+  .t-item small { display: block; font-size: 8pt; font-weight: 600; color: rgba(42,33,24,.6); margin-bottom: 0.05in; }
+  .t-item b { font-size: 13pt; font-weight: 800; letter-spacing: -0.01em; }
+
+  /* closing */
+  .next { display: flex; flex-direction: column; gap: 0.1in; }
+  .next div { background: #FFFFFF; border: 1px solid rgba(42,33,24,.12); border-radius: 12px; padding: 0.16in 0.22in; font-size: 10.5pt; font-weight: 500; line-height: 1.5; color: rgba(42,33,24,.85); }
+  .team img { width: 100%; height: 2.6in; object-fit: cover; object-position: 50% 28%; display: block; border-radius: 20px; margin: 0.25in 0 0.2in; }
+  .sig { font-size: 14pt; font-weight: 800; letter-spacing: -0.01em; margin-top: 0.1in; }
+  .sig-role { font-size: 9pt; font-weight: 600; color: rgba(42,33,24,.62); margin-top: 0.04in; }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 · COVER -->
+<div class="page cover">
+  <div class="brand"><img src="{{ASSETS}}/logo_v2.png"><span class="chip">{{COVER_CHIP}}</span></div>
+  <div class="eyebrow">The Done-For-You Garage</div>
+  <h1>Garage decluttering, installing and organizing. Done for you.</h1>
+  <p class="body">You make the keep-or-toss calls. We do everything else. Most garages are done in a day or two.</p>
+  <div class="hero">
+    <div class="small" style="font-weight:600;">Prepared for</div>
+    <div class="client">{{CLIENT}}</div>
+    <div class="addr">{{ADDR1}}<br>{{ADDR2}}</div>
+    <div style="margin-top:0.3in;" class="inline-steps"><i class="a"></i><span>Declutter</span><i class="b"></i><span>Install</span><i class="c"></i><span>Organize</span></div>
+  </div>
+  <div class="meta">
+    <div><small>Quote</small><b>No. {{QUOTE}}</b></div>
+    <div><small>Issued</small><b>{{ISSUED}}</b></div>
+    <div><small>Valid through</small><b>{{VALID}}</b></div>
+    <div><small>Utter Declutter LLC</small><b>Locally owned · Bonded · Insured</b></div>
+  </div>
+</div>
+
+<!-- PAGE 2 · HOW IT WORKS -->
+<div class="page">
+  <div class="eyebrow">{{P2_KICKER}}</div>
+  <h2>{{P2_H2}}</h2>
+  {{P2_BODY}}
+  <div class="steps" style="margin:0.1in 0 0.3in;">
+    <div class="s1"><small>Step 1</small>Declutter</div>
+    <div class="s2"><small>Step 2</small>Install</div>
+    <div class="s3"><small>Step 3</small>Organize</div>
+  </div>
+  <h3>{{P2_H2B}}</h3>
+  {{P2_BODY2}}
+  <div class="two" style="margin-top:0.12in;">
+    <div class="card sand"><h3>What we take care of</h3><ul class="list">{{SCOPE_L}}</ul></div>
+    <div class="card sand"><h3>What you end up with</h3><ul class="list">{{SCOPE_R}}</ul></div>
+  </div>
+  <div class="pagefoot"><span>Utter Declutter</span><span>The Done-For-You Garage</span></div>
+</div>
+
+{{PHOTO_PAGE}}
+
+<!-- PAGE 4 · WHAT'S INCLUDED -->
+<div class="page sand">
+  <div class="eyebrow">{{P4_KICKER}}</div>
+  <h2>{{P4_H2}}</h2>
+  <div class="card" style="margin-bottom:0.18in;">{{P4_BODY}}</div>
+  <div class="two">
+    <div class="card"><h3>What's included</h3><ul class="list">{{INCLUDED}}</ul></div>
+    <div class="card tint"><h3>Our two guarantees</h3>
+      <p class="body" style="margin-bottom:0.1in;"><b>If we don't finish in the days we quoted, the extra day is on us.</b></p>
+      <p class="body" style="margin-bottom:0.1in;"><b>If anything we did isn't right within 30 days, we come back and fix it.</b></p>
+      <div class="small">{{GUARANTEE_NOTE}}</div>
+    </div>
+  </div>
+  <div class="pagefoot"><span>Utter Declutter</span><span>The Done-For-You Garage</span></div>
+</div>
+
+<!-- PAGE 5 · YOUR INVESTMENT -->
+<div class="page">
+  <div class="eyebrow">Your investment</div>
+  <h2>{{INVEST_H2}}</h2>
+  {{SOFT_NOTE}}
+  <div class="invest">
+    <div class="amount">{{TOTAL}}</div>
+    <div class="lab">{{TOTAL_LABEL}}</div>
+    {{DISCOUNT_LINE}}
+  </div>
+  <table class="terms">{{TERMS_ROWS}}</table>
+  <div class="timeline">
+    <div class="t-item"><small>Project dates</small><b>{{DATES}}</b></div>
+    <div class="t-item"><small>Duration</small><b>{{DURATION}}</b></div>
+    <div class="t-item"><small>Crew</small><b>{{CREW}}</b></div>
+  </div>
+  <div class="pagefoot"><span>Utter Declutter</span><span>The Done-For-You Garage</span></div>
+</div>
+
+<!-- PAGE 6 · NEXT STEPS + TEAM -->
+<div class="page">
+  <div class="eyebrow">Next steps</div>
+  <h2>From here, it's simple.</h2>
+  <div class="next">
+    {{STEP1}}
+    <div>Anything beyond what's described here is handled with a written change order, so there are no surprises.</div>
+    <div>This proposal is valid for 30 days from the quote date.</div>
+  </div>
+  <div class="team">
+    <img src="{{ASSETS}}/team.jpg">
+    <p class="body">Every Utter Declutter project is owner-led. One crew handles your garage start to finish, so nothing gets handed off and nothing gets lost in between.</p>
+    <div class="sig">You keep your weekends. We keep the truck.</div>
+    <div class="sig-role">The Utter Declutter team · Naples, Florida · (239) 300-3561</div>
+  </div>
+  <div class="pagefoot"><span>Utter Declutter</span><span>The Done-For-You Garage</span></div>
+</div>
+
+</body>
+</html>
