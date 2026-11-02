@@ -12,4 +12,4 @@ no-install job, signatures not on the final contract page).
 
 Copy variants live in `copy_for()` — edit wording there, never in the templates.
 `proposal_base.html` is the canonical 6-page layout (photo page auto-drops for non-garage jobs).
-`docs.js` is the owner-approved contract/invoice format from the contract-builder skill.
+`docs_html.py` renders the service agreement, invoice and deposit invoice in brand kit v2c (weasyprint). `legacy/docs.js` is the old Times New Roman docx version, kept for reference only.

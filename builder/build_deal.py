@@ -271,13 +271,12 @@ def main():
                 serviceDatesLong=longs, serviceDatesShort=shorts, scopeBullets=scope_bullets, total=total, materials=materials, feeDescription=fee_desc,
                 laborSentence=f"All labor for the {w(days)} ({days}) service day{'s' if days > 1 else ''} of eight (8) hours{' each' if days > 1 else ''}, performed by a {w(crew)}-person crew, is included in the {usd(total)} total.",
                 paymentBullets=pay, days=days, daysWord=f"{w(days)} ({days})", dayRate=day_rate, invoiceLines=lines, schedule=sched)
+    if dep != "none" and deposit > 0:
+        spec["depositInvoice"] = {"amount": deposit, "balance": balance, "number": f"{D['invoice']}-D"}
     sp_path = os.path.join(src, "spec.json"); json.dump(spec, open(sp_path, "w"), indent=1)
-    subprocess.run(["node", os.path.join(HERE, "docs.js"), sp_path, src], check=True, capture_output=True)
-    for f in [f"UD Service Contract For {client}.docx", f"UD Invoice {D['invoice']} For {client}.docx"]:
-        r = subprocess.run(f'python3 /mnt/skills/public/docx/scripts/office/soffice.py --headless --convert-to pdf --outdir "{out}" "{os.path.join(src, f)}"', shell=True, capture_output=True, text=True)
-        if not os.path.exists(os.path.join(out, f[:-5] + ".pdf")):
-            r = subprocess.run(f'soffice --headless --convert-to pdf --outdir "{out}" "{os.path.join(src, f)}"', shell=True, capture_output=True, text=True)
-        assert os.path.exists(os.path.join(out, f[:-5] + ".pdf")), "PDF conversion failed: " + r.stderr[-400:]
+    # Brand-kit renderer (Plus Jakarta Sans, weasyprint). docs.js / LibreOffice are no longer used.
+    r = subprocess.run([sys.executable, os.path.join(HERE, "docs_html.py"), sp_path, out, "--fonts", FONTS, "--logo", os.path.join(assets, "logo_v2.png")], capture_output=True, text=True)
+    assert r.returncode == 0, "docs_html failed: " + r.stderr[-600:]
 
     # ---- QA ----
     problems = []; pages = {}
@@ -295,7 +294,7 @@ def main():
             if must not in txt: problems.append(f"{os.path.basename(pdf)}: missing '{must}'")
         if "Contract" in pdf:
             last_pg = d[-1].get_text()
-            if "SIGNATURES" not in last_pg or "TERMINATION" not in last_pg: problems.append("contract: signatures not under Termination on final page")
+            if "signatures" not in last_pg.lower() or "termination" not in last_pg.lower(): problems.append("contract: signatures not under Termination on final page")
         if "Install" not in services and "install" in txt.lower() and "Proposal" in pdf: problems.append("proposal: 'install' language on a no-install job")
         if not a.skip_view:
             for i, pg in enumerate(d): pg.get_pixmap(dpi=40).save(os.path.join(src, f"{os.path.basename(pdf)[:-4]}-{i+1}.jpg"))
