@@ -230,6 +230,9 @@ def main():
   <div class="pagefoot"><span>Utter Declutter</span><span>The Done-For-You Garage</span></div>
 </div>'''
     photo = client_page + photo
+    if D.get("renderUrl"):
+        _ru = html.escape(D["renderUrl"])
+        step1 = f'<div><b>See your garage in 3D.</b> We built an interactive render of your {html.escape(scope.lower())} with the plan from your walkthrough: <a href="{_ru}" style="color:#814A0A;">{_ru}</a></div>\n' + step1
     if D.get("softQuote"):
         step1 = "<div><b>Soft quote.</b> We finalize the design and your product selections together, then confirm the final price in your Service Agreement. The figure in this proposal may move up or down with those choices.</div>\n" + step1
     disc_line = f'<div class="disc">Includes a {usd(disc_amt)} {html.escape(disc["label"])}' + (", with our thanks for your service" if "military" in disc["label"].lower() else "") + "</div>" if disc else ""
