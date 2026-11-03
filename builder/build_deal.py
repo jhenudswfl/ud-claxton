@@ -14,6 +14,7 @@ deal.json (everything the worker knows after GHL lookup):
   "materialsList": [{"item": "Husky 77\" shelving", "qty": 2, "cost": 450}],   # cost never printed
   "services": ["Declutter", "Organize"],  # subset of Declutter / Install / Organize
   "crew": 2, "days": 1,
+  "hours": 8,                             # optional; 4 => "half service day" wording everywhere (default 8)
   "dates": ["2026-09-20"],                # ISO; [] => TBD wording
   "deposit": "none" | "std" | "half" | "custom",
   "depositAmount": 500,                   # required when deposit == "custom"
@@ -32,6 +33,7 @@ Exit code 0 only when every QA check passes. Prints a JSON summary on the last l
 """
 import json, os, re, shutil, subprocess, sys, html
 from datetime import date, datetime, timedelta
+HRS = 8; HRS_W = "eight"; DAY_W = "full service day"   # overridden from deal.json "hours" in main()
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONTS = "/tmp/node_modules/@fontsource"
@@ -44,17 +46,17 @@ def w(n): return WORDS.get(n, str(n))
 
 def long_dates(iso_list, days):
     if not iso_list:
-        return f"To be determined — {w(days)} ({days}) 8-hour service day{'s' if days > 1 else ''}, to be mutually scheduled", "To be scheduled", "Scheduled Upon Confirmation"
+        return f"To be determined — {w(days)} ({days}) {HRS}-hour service day{'s' if days > 1 else ''}, to be mutually scheduled", "To be scheduled", "Scheduled Upon Confirmation"
     ds = [datetime.strptime(d, "%Y-%m-%d").date() for d in iso_list]
     def fmt(d, year=True): return d.strftime("%A, %B ") + str(d.day) + (f", {d.year}" if year else "")
     if len(ds) == 1:
-        longs = fmt(ds[0]) + f" ({w(days)} 8-hour service day{'s' if days > 1 else ''})"
+        longs = fmt(ds[0]) + f" ({w(days)} {HRS}-hour service day{'s' if days > 1 else ''})"
         short = ds[0].strftime("%B ") + str(ds[0].day) + f", {ds[0].year}"
         tl = ds[0].strftime("%b ") + str(ds[0].day)
     else:
         same_year = all(d.year == ds[0].year for d in ds)
         parts = [fmt(d, year=not same_year) for d in ds]
-        longs = (", ".join(parts[:-1]) + " and " + parts[-1] + (f", {ds[0].year}" if same_year else "")) + f" ({w(len(ds))} 8-hour service days)"
+        longs = (", ".join(parts[:-1]) + " and " + parts[-1] + (f", {ds[0].year}" if same_year else "")) + f" ({w(len(ds))} {HRS}-hour service days)"
         short = ", ".join(d.strftime("%b ") + str(d.day) for d in ds) + f", {ds[-1].year}"
         tl = ds[0].strftime("%b ") + str(ds[0].day) + "–" + (ds[-1].strftime("%b ") if ds[-1].month != ds[0].month else "") + str(ds[-1].day)
     return longs, short, tl
@@ -147,6 +149,8 @@ def main():
     from weasyprint import HTML
 
     # ---- numbers ----
+    global HRS, HRS_W, DAY_W
+    HRS = int(D.get("hours") or 8); HRS_W = {4:"four",6:"six",8:"eight"}.get(HRS, str(HRS)); DAY_W = "half service day" if HRS <= 4 else "full service day"
     client = D["client"].strip(); first, last = client.split(" ")[0], client.split(" ")[-1]
     price = float(D["price"]); materials = float(D.get("materials") or 0); crew = int(D["crew"]); days = int(D["days"])
     disc = D.get("discount") or None; disc_amt = float(disc["amount"]) if disc else 0
@@ -252,7 +256,7 @@ def main():
     prop_pdf = os.path.join(out, f"UD Proposal For {client}.pdf"); HTML(ph).write_pdf(prop_pdf)
 
     # ---- contract + invoice ----
-    fee_desc = f"flat fee for {w(days)} 8-hour service day{'s' if days > 1 else ''}" + (f" at {usd(day_rate)} per day" if days > 1 else "") + f", {w(crew)}-person crew"
+    fee_desc = f"flat fee for {w(days)} {HRS}-hour service day{'s' if days > 1 else ''}" + (f" at {usd(day_rate)} per day" if days > 1 else "") + f", {w(crew)}-person crew"
     pay = []
     if disc: pay.append({"text": f"Labor: {usd(price)}, less a {usd(disc_amt)} {disc['label']} = {usd(price - disc_amt)}", "bold": False})
     if dep == "none":
@@ -265,15 +269,17 @@ def main():
     # Jhen's rule (Oct 2026): installation labor is carried in the materials allocation, not the labor line.
     # With a materials budget, the labor line names only decluttering/organizing and the materials line says it includes installation.
     inv_services = [s for s in ["Declutter", "Install", "Organize"] if s in services and not (materials and s == "Install")] or list(services)
-    lines = [{"desc": f"{scope} {' and '.join(s.lower() for s in inv_services).replace('declutter', 'decluttering').replace('install', 'installation').replace('organize', 'organization')} — full service day, {w(crew)}-person crew (8 hours)", "rate": day_rate, "qty": days, "amount": price}]
+    lines = [{"desc": f"{scope} {' and '.join(s.lower() for s in inv_services).replace('declutter', 'decluttering').replace('install', 'installation').replace('organize', 'organization')} — {DAY_W}, {w(crew)}-person crew ({HRS} hours)", "rate": day_rate, "qty": days, "amount": price}]
     if materials: lines.append({"desc": "Materials budget — storage solutions and products for the project" + (", including installation labor" if "Install" in services else ""), "rate": materials, "qty": 1, "amount": materials})
     if disc: lines.append({"desc": disc["label"].capitalize(), "rate": -disc_amt, "qty": 1, "amount": -disc_amt})
     sched = [{"label": "Deposit", "amount": "None required"}, {"label": "Full balance due upon project completion", "amount": usd2(total)}] if dep == "none" else \
             [{"label": "Deposit due at booking (non-refundable, reserves service date" + ("s" if days > 1 else "") + ")", "amount": usd2(deposit)}, {"label": "Balance due upon project completion", "amount": usd2(balance)}]
     spec = dict(client=client, addr1=D["addr1"], addr2=D["addr2"], address=f"{D['addr1']}, {D['addr2']}", date=issued_s, invoice=D["invoice"],
                 serviceDatesLong=longs, serviceDatesShort=shorts, scopeBullets=scope_bullets, total=total, materials=materials, feeDescription=fee_desc,
-                laborSentence=f"All labor for the {w(days)} ({days}) service day{'s' if days > 1 else ''} of eight (8) hours{' each' if days > 1 else ''}, performed by a {w(crew)}-person crew, is included in the {usd(total)} total.",
+                laborSentence=f"All labor for the {w(days)} ({days}) service day{'s' if days > 1 else ''} of {HRS_W} ({HRS}) hours{' each' if days > 1 else ''}, performed by a {w(crew)}-person crew, is included in the {usd(total)} total.",
                 paymentBullets=pay, days=days, daysWord=f"{w(days)} ({days})", dayRate=day_rate, invoiceLines=lines, schedule=sched)
+    if HRS != 8:
+        spec["scopeLimits"] = (f"The Service Fee covers {w(days)} ({days}) {HRS_W}-hour service day{'s' if days > 1 else ''} as scoped at the walkthrough. Work beyond the agreed scope or service day{'s' if days > 1 else ''} will be quoted as a written change order and performed only upon written approval by the Client, billed at {usd(day_rate)} per additional half crew day plus applicable at-cost expenses (such as dump or junk-removal fees, billed at cost, with no markup).")
     if dep != "none" and deposit > 0:
         spec["depositInvoice"] = {"amount": deposit, "balance": balance, "number": f"{D['invoice']}-D"}
     sp_path = os.path.join(src, "spec.json"); json.dump(spec, open(sp_path, "w"), indent=1)
