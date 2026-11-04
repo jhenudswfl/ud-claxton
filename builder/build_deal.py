@@ -16,7 +16,7 @@ deal.json (everything the worker knows after GHL lookup):
   "crew": 2, "days": 1,
   "hours": 8,                             # optional; 4 => "half service day" wording everywhere (default 8)
   "dates": ["2026-09-20"],                # ISO; [] => TBD wording
-  "deposit": "none" | "std" | "half" | "custom",
+  "deposit": "none" | "std" | "half" | "full" | "custom",   # std = materials + half labor; full = paid in full at booking
   "depositAmount": 500,                   # required when deposit == "custom"
   "depositTerms": "...",                  # custom wording (optional)
   "scope": "Garage",                      # space name in Jhen's words
@@ -159,6 +159,7 @@ def main():
     if dep == "none": deposit = 0
     elif dep == "std": deposit = materials + (price - disc_amt) / 2
     elif dep == "half": deposit = total / 2
+    elif dep == "full": deposit = total
     elif dep == "custom":
         if D.get("depositAmount") is None: sys.exit("ERROR: deposit=custom needs depositAmount")
         deposit = float(D["depositAmount"])
@@ -191,6 +192,11 @@ def main():
                 f'<tr><td>Due on completion<span class="sub">Paid in full at your final walk-through</span></td><td class="amt">{usd2(balance)}</td></tr>'
         step1 = "<div>Reply to confirm and we'll lock in your day on our calendar. No deposit needed.</div>\n<div>The full price is due when the job is done, at your final walk-through.</div>"
         dates_tl = tl if D.get("dates") else "On confirmation"
+    elif dep == "full":
+        terms = f'<tr><td>Paid in full at booking<span class="sub">Reserves your dates and covers everything, start to finish</span></td><td class="amt">{usd2(total)}</td></tr>' \
+                '<tr><td>Due on completion<span class="sub">Nothing left to pay on the last day</span></td><td class="amt">$0.00</td></tr>'
+        step1 = "<div>Payment in full holds your dates on our calendar and has every material ready on day one.</div>\n<div>Nothing is due when the job is done.</div>"
+        dates_tl = tl if D.get("dates") else "On payment"
     else:
         sub = {"std": "Covers all project materials and holds your dates" if materials else "Holds your dates on our calendar", "half": "Holds your dates on our calendar", "custom": html.escape(D.get("depositTerms") or "Holds your dates on our calendar")}[dep]
         terms = f'<tr><td>Deposit to reserve your dates<span class="sub">{sub}</span></td><td class="amt">{usd2(deposit)}</td></tr>' \
@@ -261,6 +267,9 @@ def main():
     if disc: pay.append({"text": f"Labor: {usd(price)}, less a {usd(disc_amt)} {disc['label']} = {usd(price - disc_amt)}", "bold": False})
     if dep == "none":
         pay += [{"text": "No deposit required", "bold": False}, {"text": f"The full balance of {usd(total)} is due upon project completion", "bold": False}]
+    elif dep == "full":
+        pay += [{"text": f"Payment in full of {usd(total)} is due at the time of booking to reserve the service date{'s' if days > 1 else ''}; this payment is non-refundable", "bold": False},
+                {"text": "No balance is due upon project completion", "bold": False}]
     else:
         why = " and allow all materials to be purchased and ready for day one" if (dep == "std" and materials) else ""
         pct = f" ({round(deposit / total * 100)}%)" if dep != "custom" else ""
@@ -273,6 +282,7 @@ def main():
     if materials: lines.append({"desc": "Materials budget — storage solutions and products for the project" + (", including installation labor" if "Install" in services else ""), "rate": materials, "qty": 1, "amount": materials})
     if disc: lines.append({"desc": disc["label"].capitalize(), "rate": -disc_amt, "qty": 1, "amount": -disc_amt})
     sched = [{"label": "Deposit", "amount": "None required"}, {"label": "Full balance due upon project completion", "amount": usd2(total)}] if dep == "none" else \
+            [{"label": "Paid in full at booking (non-refundable, reserves service date" + ("s" if days > 1 else "") + ")", "amount": usd2(total)}, {"label": "Balance due upon project completion", "amount": "$0.00"}] if dep == "full" else \
             [{"label": "Deposit due at booking (non-refundable, reserves service date" + ("s" if days > 1 else "") + ")", "amount": usd2(deposit)}, {"label": "Balance due upon project completion", "amount": usd2(balance)}]
     spec = dict(client=client, addr1=D["addr1"], addr2=D["addr2"], address=f"{D['addr1']}, {D['addr2']}", date=issued_s, invoice=D["invoice"],
                 serviceDatesLong=longs, serviceDatesShort=shorts, scopeBullets=scope_bullets, total=total, materials=materials, feeDescription=fee_desc,
@@ -280,8 +290,8 @@ def main():
                 paymentBullets=pay, days=days, daysWord=f"{w(days)} ({days})", dayRate=day_rate, invoiceLines=lines, schedule=sched)
     if HRS != 8:
         spec["scopeLimits"] = (f"The Service Fee covers {w(days)} ({days}) {HRS_W}-hour service day{'s' if days > 1 else ''} as scoped at the walkthrough. Work beyond the agreed scope or service day{'s' if days > 1 else ''} will be quoted as a written change order and performed only upon written approval by the Client, billed at {usd(day_rate)} per additional half crew day plus applicable at-cost expenses (such as dump or junk-removal fees, billed at cost, with no markup).")
-    if dep != "none" and deposit > 0:
-        spec["depositInvoice"] = {"amount": deposit, "balance": balance, "number": f"{D['invoice']}-D"}
+    # Jhen, Nov 3 2026: ONE invoice per deal. The deposit (or payment in full) and the balance are the
+    # payment schedule printed on that invoice; no separate deposit invoice is produced.
     sp_path = os.path.join(src, "spec.json"); json.dump(spec, open(sp_path, "w"), indent=1)
     # Brand-kit renderer (Plus Jakarta Sans, weasyprint). docs.js / LibreOffice are no longer used.
     r = subprocess.run([sys.executable, os.path.join(HERE, "docs_html.py"), sp_path, out, "--fonts", FONTS, "--logo", os.path.join(assets, "logo_v2.png")], capture_output=True, text=True)

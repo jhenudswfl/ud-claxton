@@ -9,7 +9,7 @@ cocoa / paper / sand / bronze / palm) from the spec.json that build_deal.py writ
 Writes:
   UD Service Contract For <Client>.pdf   (2 pages; signatures on page 2)
   UD Invoice <N> For <Client>.pdf        (1 page)
-  UD Deposit Invoice <N> For <Client>.pdf (1 page, when spec.depositInvoice is set)
+  UD Deposit Invoice <N> For <Client>.pdf (legacy only: spec.depositInvoice is no longer set by build_deal.py — one invoice per deal)
 """
 import json, os, sys, html as H
 
@@ -151,7 +151,9 @@ def main():
         # total invoice
         sched = []
         for i, s in enumerate(c["schedule"]):
-            sched.append({"label": s["label"], "amount": s["amount"], "due": i == len(c["schedule"]) - 1 and "None" not in s["amount"]})
+            # one invoice per deal: highlight the first payment actually owed (deposit / paid in full, else the balance)
+            first_due = 0 if "None" not in c["schedule"][0]["amount"] else len(c["schedule"]) - 1
+            sched.append({"label": s["label"], "amount": s["amount"], "due": i == first_due})
         write(invoice_html({"title": "Invoice", "chip": "Total for the project", "number": c["invoice"], "date": c["date"], "lines": c["invoiceLines"], "total": c["total"], "schedule": sched,
                             "note": c.get("footerNote") or f"Per Service Agreement / Invoice #{c['invoice']}. Thank you for choosing Utter Declutter."}),
               c.get("invoiceFile") or f"UD Invoice {c['invoice']} For {c['client']}.pdf")
