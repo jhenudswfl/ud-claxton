@@ -19,6 +19,7 @@ deal.json (everything the worker knows after GHL lookup):
   "deposit": "none" | "std" | "half" | "full" | "custom",   # std = materials + half labor; full = paid in full at booking
   "depositAmount": 500,                   # required when deposit == "custom"
   "depositTerms": "...",                  # custom wording (optional)
+  "depositPaid": {"amount": 1750, "detail": "$1,000 via Cash App Tap to Pay and $750 via Zelle"},   # optional: the deposit was already received before signing; documents say so instead of "due at booking"
   "scope": "Garage",                      # space name in Jhen's words
   "discount": {"label": "military discount", "amount": 200},   # optional, shown as its own line
   "itemized": false,                      # true => materials list shows prices (Jhen must say so)
@@ -133,7 +134,9 @@ def main():
     import argparse
     ap = argparse.ArgumentParser(); ap.add_argument("deal"); ap.add_argument("--out", default="out"); ap.add_argument("--assets", default=None)
     ap.add_argument("--skip-view", action="store_true", help="don't render page images")
+    ap.add_argument("--leaks", default="", help="comma list of other clients' names that must not appear in these documents")
     a = ap.parse_args()
+    LEAKS.extend(x.strip() for x in a.leaks.split(',') if x.strip())
     D = json.load(open(a.deal))
     assets = os.path.abspath(a.assets or os.path.join(HERE, "assets"))
     out = os.path.abspath(a.out); src = os.path.join(out, "src"); os.makedirs(src, exist_ok=True)
@@ -166,6 +169,8 @@ def main():
     else: sys.exit(f"ERROR: unknown deposit {dep}")
     balance = total - deposit
     assert abs(deposit + balance - total) < 0.005, "deposit + balance != total"
+    paid = D.get("depositPaid") if dep in ("std", "half", "custom") else None   # deposit already received before signing
+    if paid: assert abs(float(paid.get("amount", deposit)) - deposit) < 0.005, f"depositPaid.amount {paid.get('amount')} != deposit {deposit}"
     day_rate = round(price / days)
     issued = datetime.strptime(D.get("date") or date.today().isoformat(), "%Y-%m-%d").date()
     issued_s = issued.strftime("%B ") + str(issued.day) + f", {issued.year}"
@@ -199,9 +204,14 @@ def main():
         dates_tl = tl if D.get("dates") else "On payment"
     else:
         sub = {"std": "Covers all project materials and holds your dates" if materials else "Holds your dates on our calendar", "half": "Holds your dates on our calendar", "custom": html.escape(D.get("depositTerms") or "Holds your dates on our calendar")}[dep]
-        terms = f'<tr><td>Deposit to reserve your dates<span class="sub">{sub}</span></td><td class="amt">{usd2(deposit)}</td></tr>' \
-                f'<tr><td>Due on completion<span class="sub">Paid at your final walk-through</span></td><td class="amt">{usd2(balance)}</td></tr>'
-        step1 = f"<div>The deposit holds your dates on our calendar{' and covers all project materials, so everything is ready on day one' if (materials and dep == 'std') else ''}.</div>\n<div>The balance is due when the job is done, at your final walk-through.</div>"
+        if paid:
+            terms = f'<tr><td>Deposit — received, thank you<span class="sub">{html.escape(paid.get("detail") or "")}{"; " if paid.get("detail") else ""}{sub[0].lower() + sub[1:]}</span></td><td class="amt">{usd2(deposit)}</td></tr>' \
+                    f'<tr><td>Due on completion<span class="sub">Paid at your final walk-through</span></td><td class="amt">{usd2(balance)}</td></tr>'
+            step1 = f"<div>Your deposit is in: your dates are held on our calendar{' and all project materials are covered, so everything is ready on day one' if (materials and dep == 'std') else ''}.</div>\n<div>The balance is due when the job is done, at your final walk-through.</div>"
+        else:
+            terms = f'<tr><td>Deposit to reserve your dates<span class="sub">{sub}</span></td><td class="amt">{usd2(deposit)}</td></tr>' \
+                    f'<tr><td>Due on completion<span class="sub">Paid at your final walk-through</span></td><td class="amt">{usd2(balance)}</td></tr>'
+            step1 = f"<div>The deposit holds your dates on our calendar{' and covers all project materials, so everything is ready on day one' if (materials and dep == 'std') else ''}.</div>\n<div>The balance is due when the job is done, at your final walk-through.</div>"
         dates_tl = tl if D.get("dates") else "On deposit"
     photo = ""
     if "garage" in scope.lower():
@@ -273,8 +283,13 @@ def main():
     else:
         why = " and allow all materials to be purchased and ready for day one" if (dep == "std" and materials) else ""
         pct = f" ({round(deposit / total * 100)}%)" if dep != "custom" else ""
-        pay += [{"text": f"A non-refundable deposit of {usd(deposit)}{pct} is due at the time of booking to reserve the service date{'s' if days > 1 else ''}{why}" + (f" — {D['depositTerms']}" if dep == "custom" and D.get("depositTerms") else ""), "bold": False},
-                {"text": f"The remaining balance of {usd(balance)} is due upon project completion", "bold": False}]
+        if paid:
+            covers = f", covering the {usd(materials)} materials allocation and the first half of the labor" if (dep == "std" and materials) else (", covering the first half of the labor" if dep == "half" else "")
+            pay += [{"text": f"A non-refundable deposit of {usd(deposit)}{pct} has been received" + (f" ({paid['detail']})" if paid.get("detail") else "") + f"{covers}; it reserves the service date{'s' if days > 1 else ''}" + (" and allows all materials to be purchased and ready for day one" if (dep == "std" and materials) else ""), "bold": False},
+                    {"text": f"The remaining balance of {usd(balance)} is due upon project completion", "bold": False}]
+        else:
+            pay += [{"text": f"A non-refundable deposit of {usd(deposit)}{pct} is due at the time of booking to reserve the service date{'s' if days > 1 else ''}{why}" + (f" — {D['depositTerms']}" if dep == "custom" and D.get("depositTerms") else ""), "bold": False},
+                    {"text": f"The remaining balance of {usd(balance)} is due upon project completion", "bold": False}]
     # Jhen's rule (Oct 2026): installation labor is carried in the materials allocation, not the labor line.
     # With a materials budget, the labor line names only decluttering/organizing and the materials line says it includes installation.
     inv_services = [s for s in ["Declutter", "Install", "Organize"] if s in services and not (materials and s == "Install")] or list(services)
@@ -283,6 +298,7 @@ def main():
     if disc: lines.append({"desc": disc["label"].capitalize(), "rate": -disc_amt, "qty": 1, "amount": -disc_amt})
     sched = [{"label": "Deposit", "amount": "None required"}, {"label": "Full balance due upon project completion", "amount": usd2(total)}] if dep == "none" else \
             [{"label": "Paid in full at booking (non-refundable, reserves service date" + ("s" if days > 1 else "") + ")", "amount": usd2(total)}, {"label": "Balance due upon project completion", "amount": "$0.00"}] if dep == "full" else \
+            [{"label": "Deposit received" + (f" ({paid['detail']})" if paid.get("detail") else "") + " — non-refundable, reserves service date" + ("s" if days > 1 else ""), "amount": usd2(deposit), "paid": True}, {"label": "Balance due upon project completion", "amount": usd2(balance)}] if paid else \
             [{"label": "Deposit due at booking (non-refundable, reserves service date" + ("s" if days > 1 else "") + ")", "amount": usd2(deposit)}, {"label": "Balance due upon project completion", "amount": usd2(balance)}]
     spec = dict(client=client, addr1=D["addr1"], addr2=D["addr2"], address=f"{D['addr1']}, {D['addr2']}", date=issued_s, invoice=D["invoice"],
                 serviceDatesLong=longs, serviceDatesShort=shorts, scopeBullets=scope_bullets, total=total, materials=materials, feeDescription=fee_desc,

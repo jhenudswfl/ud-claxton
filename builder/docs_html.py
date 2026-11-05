@@ -152,7 +152,8 @@ def main():
         sched = []
         for i, s in enumerate(c["schedule"]):
             # one invoice per deal: highlight the first payment actually owed (deposit / paid in full, else the balance)
-            first_due = 0 if "None" not in c["schedule"][0]["amount"] else len(c["schedule"]) - 1
+            owed = [j for j, x in enumerate(c["schedule"]) if not x.get("paid") and "None" not in x["amount"]]
+            first_due = owed[0] if owed else len(c["schedule"]) - 1
             sched.append({"label": s["label"], "amount": s["amount"], "due": i == first_due})
         write(invoice_html({"title": "Invoice", "chip": "Total for the project", "number": c["invoice"], "date": c["date"], "lines": c["invoiceLines"], "total": c["total"], "schedule": sched,
                             "note": c.get("footerNote") or f"Per Service Agreement / Invoice #{c['invoice']}. Thank you for choosing Utter Declutter."}),
