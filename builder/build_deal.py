@@ -24,7 +24,13 @@ deal.json (everything the worker knows after GHL lookup):
   "itemized": false,                      # true => materials list shows prices (Jhen must say so)
   "notes": "...",                         # free text, NOT printed
   "invoice": 125, "quote": 94,
-  "date": "2026-09-10"                    # issue date (defaults to today)
+  "date": "2026-09-10",                   # issue date (defaults to today)
+  "options": [                            # optional: a two-option (A / B) proposal. The top-level numbers are
+    {"key": "A", "label": "Premium",      # option A (the contract and invoice use them); the proposal shows both.
+     "price": 2500, "materials": 5370, "crew": 4, "days": 1,
+     "materialsList": [{"item": "IKEA PAX", "qty": 1}], "renderUrl": "https://studio.../p/abc"},
+    {"key": "B", "label": "Essentials", "price": 1250, "materials": 1800, "crew": 2, "days": 1, "materialsList": [], "renderUrl": null}
+  ]
 }
 
 Outputs (PDF only, plus the working sources in out/src):
@@ -60,6 +66,16 @@ def long_dates(iso_list, days):
         short = ", ".join(d.strftime("%b ") + str(d.day) for d in ds) + f", {ds[-1].year}"
         tl = ds[0].strftime("%b ") + str(ds[0].day) + "–" + (ds[-1].strftime("%b ") if ds[-1].month != ds[0].month else "") + str(ds[-1].day)
     return longs, short, tl
+
+def deposit_for(dep, price, materials, disc_amt, deposit_amount=None):
+    total = price + materials - disc_amt
+    if dep == "none": d = 0
+    elif dep == "std": d = materials + (price - disc_amt) / 2
+    elif dep == "half": d = total / 2
+    elif dep == "full": d = total
+    elif dep == "custom": d = float(deposit_amount or 0)
+    else: sys.exit(f"ERROR: unknown deposit {dep}")
+    return total, d, total - d
 
 def li(items): return "\n".join(f"<li>{html.escape(i)}</li>" for i in items)
 def dv(items): return "\n".join(f"<div>{html.escape(i)}</div>" for i in items)
@@ -240,9 +256,43 @@ def main():
   <div class="pagefoot"><span>Utter Declutter</span><span>The Done-For-You Garage</span></div>
 </div>'''
     photo = client_page + photo
-    if D.get("renderUrl"):
+    if D.get("renderUrl") and len([o for o in (D.get("options") or []) if o.get("key")]) < 2:
         _ru = html.escape(D["renderUrl"])
         step1 = f'<div><b>See your {html.escape(scope.lower())} in 3D.</b> We built a 3D look at the plan we walked through, to your measurements. Open it on your phone: <a href="{_ru}" style="color:#814A0A; font-weight:600;">{_ru}</a></div>\n' + step1
+    disc_line = f'<div class="disc">Includes a {usd(disc_amt)} {html.escape(disc["label"])}' + (", with our thanks for your service" if "military" in disc["label"].lower() else "") + "</div>" if disc else ""
+    # ---- two-option (A / B) proposal ----
+    opts = [o for o in (D.get("options") or []) if o.get("key")]
+    opt_rows = []
+    if len(opts) >= 2:
+        for o in opts:
+            op, om = float(o.get("price") or 0), float(o.get("materials") or 0)
+            ot, od, ob = deposit_for(dep, op, om, disc_amt, D.get("depositAmount"))
+            opt_rows.append(dict(o, price=op, materials=om, crew=int(o.get("crew") or crew), days=int(o.get("days") or days), total=ot, deposit=od, balance=ob,
+                                 items=[m for m in (o.get("materialsList") or []) if m.get("item")]))
+        def _name(o): return f"Option {html.escape(o['key'])}" + (f" · {html.escape(o['label'])}" if o.get("label") else "")
+        def _crewdays(o): return f"{w(o['crew']).capitalize()}-person crew · {'one day' if o['days'] == 1 else w(o['days']) + ' days'}"
+        cards = []
+        for i, o in enumerate(opt_rows):
+            rws = "".join(f"<tr><td>{html.escape(m['item'])}</td><td class=\"qty\">{m.get('qty', 1)}</td></tr>" for m in o["items"]) \
+                  or (f"<tr><td>Storage solutions and products for the {scope.lower()}</td><td class=\"qty\">Project batch</td></tr>" if o["materials"] else f"<tr><td>Your existing storage, reset and labeled</td><td class=\"qty\">Included</td></tr>")
+            cards.append(f'<div class="card{" tint" if i == 0 else ""}" style="padding:0.24in 0.24in;"><span class="chip{" palm" if i else ""}" style="margin-bottom:0.1in;">{_name(o)}</span>'
+                         f'<div class="small" style="margin:0.04in 0 0.08in; font-weight:700;">{_crewdays(o)}</div><table class="materials" style="margin-bottom:0;">{rws}</table></div>')
+        p4["K"] = "Two ways to do it"; p4["H"] = f"Two plans for your {scope.lower()}. You pick."
+        p4_body = '<div class="two">' + "".join(cards) + '</div><div class="small" style="margin-top:0.14in;">Both options include the sort, haul-off, donation drop-off and the small supplies a project like this needs. Final products and finishes are confirmed with you before anything is ordered.</div>'
+        p4_body_marker = True
+        inv = []
+        for i, o in enumerate(opt_rows):
+            if dep == "none": tr = f'<div class="small" style="color:#FBF8F3; opacity:.8; margin-top:0.12in;">No deposit · {usd2(o["total"])} due on completion</div>'
+            elif dep == "full": tr = f'<div class="small" style="color:#FBF8F3; opacity:.8; margin-top:0.12in;">Paid in full at booking</div>'
+            else: tr = f'<div class="small" style="color:#FBF8F3; opacity:.8; margin-top:0.12in;">{usd2(o["deposit"])} to reserve your dates<br>{usd2(o["balance"])} due on completion</div>'
+            inv.append(f'<div class="invest" style="flex:1; margin-bottom:0; padding:0.34in 0.3in;{" background:#814A0A;" if i == 0 else ""}"><div class="small" style="color:#FBF8F3; opacity:.85; font-weight:700; margin-bottom:0.1in;">{_name(o)}</div>'
+                       f'<div class="amount" style="font-size:30pt;">{usd2(o["total"])}</div><div class="lab">{"All-in, materials included" if o["materials"] else "Flat price"} · {_crewdays(o)}</div>{tr}</div>')
+        opt_invest = '<div class="two" style="margin-bottom:0.22in;">' + "".join(inv) + '</div>' + (disc_line_pre := "")
+        links = [f'<b>Option {html.escape(o["key"])}{" · " + html.escape(o["label"]) if o.get("label") else ""}:</b> <a href="{html.escape(o["renderUrl"])}" style="color:#814A0A; font-weight:600;">{html.escape(o["renderUrl"])}</a>' for o in opt_rows if o.get("renderUrl")]
+        pick = "<div><b>Pick the option that fits.</b> Reply A or B and we'll send your Service Agreement for that plan. Happy to walk through either one with you first.</div>"
+        step1_opts = (f'<div><b>See both plans in 3D.</b> Built to your measurements, open them on your phone:<br>' + "<br>".join(links) + "</div>\n" if links else "") + pick + "\n" + \
+                     ("<div>No deposit needed. The full price is due when the job is done, at your final walk-through.</div>" if dep == "none" else "<div>Payment in full holds your dates on our calendar.</div>" if dep == "full" else "<div>The deposit holds your dates on our calendar. The balance is due when the job is done, at your final walk-through.</div>")
+        step1 = step1_opts
     if D.get("softQuote"):
         step1 = "<div><b>Soft quote.</b> We finalize the design and your product selections together, then confirm the final price in your Service Agreement. The figure in this proposal may move up or down with those choices.</div>\n" + step1
     disc_line = f'<div class="disc">Includes a {usd(disc_amt)} {html.escape(disc["label"])}' + (", with our thanks for your service" if "military" in disc["label"].lower() else "") + "</div>" if disc else ""
@@ -256,6 +306,13 @@ def main():
                "{{TOTAL}}": usd2(total), "{{TOTAL_LABEL}}": ("Soft quote estimate · " if soft else ("All-in, materials included · " if materials else "Flat price · ")) + label, "{{DISCOUNT_LINE}}": disc_line,
                "{{TERMS_ROWS}}": terms, "{{DATES}}": dates_tl, "{{DURATION}}": {1: "One day", 2: "Two days", 3: "Three days", 4: "Four days"}.get(days, f"{days} days"), "{{STEP1}}": step1}
     h = open(os.path.join(HERE, "proposal_base.html")).read()
+    if opt_rows:
+        i0 = h.index('<div class="invest">'); i1 = h.index('<table class="terms">{{TERMS_ROWS}}</table>') + len('<table class="terms">{{TERMS_ROWS}}</table>')
+        h = h[:i0] + opt_invest + "{{DISCOUNT_LINE}}" + h[i1:]
+        i0 = h.index('<div class="t-item"><small>Duration</small>'); i1 = h.index('</div>', h.index('<div class="t-item"><small>Crew</small>')) + 6
+        h = h[:i0] + h[i1:]
+        sub_map["{{INVEST_H2}}"] = "Two options. Flat prices, everything included."
+        sub_map["{{DISCOUNT_LINE}}"] = (f'<div class="small" style="margin:-0.1in 0 0.16in;">' + disc_line[len('<div class="disc">'):] if disc_line else "")
     for k, v in sub_map.items(): h = h.replace(k, v)
     assert "{{" not in h, "unfilled placeholder: " + re.findall(r"\{\{[A-Z_0-9]+\}\}", h)[0]
     ph = os.path.join(src, "proposal.html"); open(ph, "w").write(h)
@@ -309,7 +366,9 @@ def main():
             scrub = scrub.replace(ok_phrase, "")  # owner-approved wording, not an internal-number leak
         for bad in LEAKS:
             if bad in scrub and bad not in own and not (itemized and bad == " cost"): problems.append(f"{os.path.basename(pdf)}: leak '{bad.strip()}'")
-        for must in [client, usd2(total) if "Proposal" in pdf or "Invoice" in pdf else usd(total)]:
+        musts = [client, usd2(total) if "Proposal" in pdf or "Invoice" in pdf else usd(total)]
+        if "Proposal" in pdf and opt_rows: musts += [usd2(o["total"]) for o in opt_rows] + [f"Option {o['key']}" for o in opt_rows]
+        for must in musts:
             if must not in txt: problems.append(f"{os.path.basename(pdf)}: missing '{must}'")
         if "Contract" in pdf:
             last_pg = d[-1].get_text()
@@ -318,6 +377,7 @@ def main():
         if not a.skip_view:
             for i, pg in enumerate(d): pg.get_pixmap(dpi=40).save(os.path.join(src, f"{os.path.basename(pdf)[:-4]}-{i+1}.jpg"))
     summary = dict(ok=not problems, problems=problems, pages=pages, total=total, deposit=deposit, balance=balance, dayRate=day_rate,
+                   options=[{k: o[k] for k in ("key", "label", "total", "deposit", "balance")} for o in opt_rows],
                    files=[os.path.basename(x) for x in checks], records_name=f"{last}_{scope.replace(' ', '')}_{issued.isoformat()}.pdf")
     print(json.dumps(summary))
     sys.exit(0 if not problems else 1)
