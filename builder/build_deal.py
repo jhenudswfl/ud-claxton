@@ -314,6 +314,9 @@ def main():
         sub_map["{{INVEST_H2}}"] = "Two options. Flat prices, everything included."
         sub_map["{{DISCOUNT_LINE}}"] = (f'<div class="small" style="margin:-0.1in 0 0.16in;">' + disc_line[len('<div class="disc">'):] if disc_line else "")
     for k, v in sub_map.items(): h = h.replace(k, v)
+    if "Install" not in services:  # no-install job: the fixed cover/step labels must not promise installation
+        h = h.replace("Garage decluttering, installing and organizing. Done for you.", f"{scope} decluttering and organizing. Done for you.")
+        h = h.replace("<span>Install</span>", "<span>Haul away</span>").replace("<small>Step 2</small>Install", "<small>Step 2</small>Haul away")
     assert "{{" not in h, "unfilled placeholder: " + re.findall(r"\{\{[A-Z_0-9]+\}\}", h)[0]
     ph = os.path.join(src, "proposal.html"); open(ph, "w").write(h)
     prop_pdf = os.path.join(out, f"UD Proposal For {client}.pdf"); HTML(ph).write_pdf(prop_pdf)
